@@ -170,12 +170,12 @@ ml_l_pliv = learner$clone()
 ml_m_pliv = learner$clone()
 ml_r_pliv = learner$clone()
 
-obj_dml_data_pliv = DoubleMLData$new(data_pension,
+obj_dml_data_pliv <- DoubleMLData$new(data_pension,
                                      y_col="Y",
                                      d_col = "W",
                                      z_cols= "Z",
                                      x_cols = cols)
-dml_pliv_obj = DoubleMLPLIV$new(obj_dml_data_pliv, ml_l_pliv, ml_m_pliv, ml_r_pliv)
+dml_pliv_obj <- DoubleMLPLIV$new(obj_dml_data_pliv, ml_l_pliv, ml_m_pliv, ml_r_pliv)
 dml_pliv_obj$fit()
 print(dml_pliv_obj)
 
@@ -188,6 +188,24 @@ print(dml_pliv_obj)
 ## Interactive regression model for ATE (IRM)
 
 ### Version 1 
+
+```{r}
+
+set.seed(123)
+
+ml_g_irm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_m_irm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+
+obj_dml_data <-  DoubleMLData$new(data_pension,
+                                y_col="Y",
+                                d_cols="W",
+                                x_cols = cols)
+dml_irm_obj_1 <- DoubleMLIRM$new(obj_dml_data, ml_g_irm_1, ml_m_irm_1)
+dml_irm_obj_1$fit()
+print(dml_irm_obj_1)
+
+
+```
 
 
 
@@ -202,15 +220,47 @@ print(dml_pliv_obj)
 
 ### Version 2
 
+```{r}
+
+set.seed(123)
+
+ml_g_iivm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_m_iivm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_r_iivm_1 <-  ml_m$clone()
+
+obj_dml_data <- DoubleMLData$new(data_pension,
+                                y_col="Y",
+                                d_cols="W",
+                                z_cols="Z",
+                                x_cols = cols)
+dml_iivm_obj_1 <-  DoubleMLIIVM$new(obj_dml_data,
+                                ml_g_iivm_1, ml_m_iivm_1, ml_r_iivm_1)
+dml_iivm_obj_1$fit()
+print(dml_iivm_obj_1)
+
+
+```
+
+
 
 ## Plot Model Evaluations
 
 ```{r}
 
-dml_objs <- list(dml_plr_obj_classif,dml_plr_obj, dml_pliv_obj)
+dml_objs <- list(dml_plr_obj_classif,dml_plr_obj,
+                 dml_pliv_obj,
+                 dml_irm_obj_1,
+                 dml_iivm_obj_1)
+names <- c("PLR", "PLIV", "IRM", "IIVM")
+model_names <- (rep(names, each = 2))
+
 
 point_estimates <- sapply(dml_objs, function(x) x$coef)
 std_errors <- sapply(dml_objs, function(x) x$se)
+
+#Add p-values for stat significance
+p_values <- sapply(dml_objs, function(x) x$pval)
+
 # point_estimates <- sapply(dml_objs, function(x) x$coef["W"])
 # std_errors <- sapply(dml_objs, function(x) x$se["W"])
 
@@ -219,12 +269,16 @@ std_errors <- sapply(dml_objs, function(x) x$se)
 lower_bounds <- point_estimates - 1.96 * std_errors
 upper_bounds <- point_estimates + 1.96 * std_errors
 
-# create a data frame for plotting
+
+
+
+# create a data frame for plotting and model description
 df <- data.frame(
-    model = paste0("Model ", seq_along(dml_objs)),
+    model = paste0("Model ", seq_along(dml_objs)," ", model_names[1:length(dml_objs)]),
     estimate = point_estimates,
     lower = lower_bounds,
-    upper = upper_bounds
+    upper = upper_bounds,
+    p_value = p_values
 )
 
 # plot point estimates with error bars representing the confidence intervals
@@ -238,6 +292,19 @@ ggplot(df, aes(x=model, y=estimate)) +
     xlab("Model") +
     ylab("Point Estimate")
 
+
+```
+```{r}
+
+# plot p-values for each model
+ggplot(df, aes(x=model, y=p_value)) +
+    geom_point(aes(color=model), size=3) +
+    scale_color_brewer(palette="Set1") +
+    theme_light() +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    ggtitle("Model Evaluation (p-values)") +
+    xlab("Model") +
+    ylab("P-value")
 
 ```
 
