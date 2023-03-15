@@ -1,0 +1,133 @@
+---
+title: "Assignment"
+subtitle: "Causal ML Luzern"
+author: "Tobias Hösli"
+date: "`r format(Sys.time(), '%m/%y')`"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    code_folding: show
+---
+
+<br>
+
+# Theory recap: Double ML (20 points)
+Briefly describe in your own words (and potentially formulas) the general idea of Double Machine Learning. What is the crucial property that makes it work? What should the nuisance parameter predictions fulfill for Double ML to work?
+
+<br>
+<br>
+
+
+# Practice task: Average effects with and without instrument (60 points)
+
+## 401(k) dataset again
+
+We again use the data of the `hdm` package. The data was used in [Chernozhukov and Hansen (2004)](https://direct.mit.edu/rest/article/86/3/735/57586/The-Effects-of-401-K-Participation-on-the-Wealth). Their paper investigates the effect of participation in the employer-sponsored 401(k) retirement savings plan (*p401*) on net assets (*net_tfa*). Since then, the data was used to showcase many new methods. It is not the most comprehensive dataset with basically ten covariates/regressors/predictors:
+
+- *age*: age
+
+- *db*: defined benefit pension
+
+- *educ*: education (in years)
+
+- *fsize*: family size
+
+- *hown*: home owner
+
+- *inc*: income (in US $)
+
+- *male*: male
+
+- *marr*: married
+
+- *pira*: participation in individual retirement account (IRA)
+
+- *twoearn*: two earners
+
+```{r, warning=F,message=F}
+library(hdm)
+
+# Get data
+data(pension)
+# Outcome
+Y <-  pension$net_tfa
+# Treatment
+W <-  pension$p401
+# Treatment
+Z <-  pension$e401
+# Create main effects matrix
+X <-  model.matrix(~ 0 + age + db + educ + fsize + hown + inc + male + marr + pira + twoearn, data = pension)
+
+
+#add 
+
+data_pension <- data.table(cbind(X,W,Z,Y))
+cols <- colnames(data_pension)
+# remove columns Y,W,Z from cols
+cols <- cols[!cols %in% c("Y", "W", "Z")]
+
+```
+
+
+### Partially linear regression model (PLR)
+
+```{r}
+
+library(DoubleML)
+library(mlr3)
+library(mlr3learners)
+library(data.table)
+lgr::get_logger("mlr3")$set_threshold("warn")
+learner <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+# learner <- lrn("regr.ranger")
+ml_l = learner$clone()
+ml_m = learner$clone()
+set.seed(1111)
+# data = make_plr_CCDDHNR2018(alpha=0.5, n_obs=500, dim_x=20, return_type='data.table')
+# obj_dml_data <- data_pension %>% DoubleMLData$new(y_col = 'Y', d_cols = 'W')
+
+
+obj_dml_data <- double_ml_data_from_data_frame(data_pension,
+                                        y_col = "Y",
+                                        d_cols = "W",
+                                        x_cols = cols)
+
+
+dml_plr_obj <- DoubleMLPLR$new(obj_dml_data, ml_l, ml_m)
+dml_plr_obj$fit()
+print(dml_plr_obj)
+
+
+```
+
+
+```{r}
+
+library(DoubleML)
+library(mlr3)
+library(mlr3learners)
+
+# Set up the data as a DoubleMLData object
+dml_data <- double_ml_data_from_data_frame(pension,
+                                        y_col = "net_tfa",
+                                        d_cols = "p401",
+                                        x_cols = c("age", "educ", "fsize", "marr"))
+
+# Set up the machine learning methods for m & g
+learner_l <- lrn("regr.ranger")
+learner_m <- lrn("classif.ranger")
+
+# Initialize an object of class DoubleMLPLR
+dml_plr_obj <- DoubleMLPLR$new(dml_data,
+                               ml_l = learner_l,
+                               ml_m = learner_m)
+
+# Estimate the treatment effect
+dml_plr_obj$fit()
+dml_plr_obj$summary()
+print(dml_plr_obj)
+
+```
+
+
