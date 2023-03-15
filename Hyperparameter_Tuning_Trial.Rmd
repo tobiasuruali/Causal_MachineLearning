@@ -1,0 +1,100 @@
+---
+title: "Hyperparameter Tuning"
+author: "Tobias Hoesli"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+
+
+# Get data
+data(pension)
+# Outcome
+Y <-  pension$net_tfa
+# Treatment
+W <-  pension$p401
+# Treatment
+Z <-  pension$e401
+# Create main effects matrix
+X <-  model.matrix(~ 0 + age + db + educ + fsize + hown + inc + male + marr + pira + twoearn, data = pension)
+
+
+#add 
+
+data_pension <- data.table(cbind(X,W,Z,Y))
+cols <- colnames(data_pension)
+# remove columns Y,W,Z from cols
+cols <- cols[!cols %in% c("Y", "W", "Z")]
+
+```
+
+
+```{r}
+
+library(DoubleML)
+library(mlr3)
+library(mlr3tuning)
+
+# Set up the data
+obj_dml_data_pliv <- DoubleMLData$new(data_pension,
+                                      y_col = "Y",
+                                      d_col = "W",
+                                      z_cols = "Z",
+                                      x_cols = cols)
+
+# Set up the learner
+learner <- lrn("regr.ranger")
+
+# Define the search space for hyperparameters
+param_set <- ParamSet$new(list(
+  ParamInt$new("num.trees", lower = 10, upper = 500),
+  ParamInt$new("mtry", lower = 1, upper = ncol(obj_dml_data_pliv$data)-1),
+  ParamInt$new("min.node.size", lower = 1, upper = 10),
+  ParamInt$new("max.depth", lower = 1, upper = 10)
+))
+
+# Set up the tuning instance
+instance <- TuningInstanceSingleCrit$new(
+  task = TaskRegr$new(id = "pliv_task", backend=obj_dml_data_pliv$data,
+                      target="Y"),
+  learner = learner,
+  resampling = rsmp("cv", folds=5),
+  measure=msr("regr.mse"),
+  search_space=param_set,
+  terminator=trm("evals", n_evals=25)
+)
+
+# Run the tuning
+tuner <- tnr("grid_search")
+tuner$optimize(instance)
+
+# Extract the best hyperparameters
+best_params <- instance$result_learner_param_vals
+
+# Update the learners with the best hyperparameters
+ml_l_pliv <- learner$clone()
+ml_l_pliv$param_set$values <-  best_params
+ml_m_pliv <- learner$clone()
+ml_m_pliv$param_set$values <- best_params
+ml_r_pliv <- learner$clone()
+ml_r_pliv$param_set$values <- best_params
+
+dml_pliv_obj <- DoubleMLPLIV$new(obj_dml_data_pliv,
+                                 ml_l_pliv,
+                                 ml_m_pliv,
+                                 ml_r_pliv)
+
+dml_pliv_obj$fit()
+print(dml_pliv_obj)
+
+
+
+```
+
