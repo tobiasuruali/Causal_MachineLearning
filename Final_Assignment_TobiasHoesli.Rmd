@@ -185,6 +185,60 @@ print(dml_pliv_obj)
 ```
 
 
+## Interactive regression model for ATE (IRM)
+
+### Version 1 
+
+
+
+### Version 2 
+
+
+
+## Interactive IV model for LATE (IIVM)
+
+
+### Version 1 
+
+### Version 2
+
+
+## Plot Model Evaluations
+
+```{r}
+
+dml_objs <- list(dml_plr_obj_classif, dml_pliv_obj)
+
+point_estimates <- sapply(dml_objs, function(x) x$coef)
+std_errors <- sapply(dml_objs, function(x) x$se)
+# point_estimates <- sapply(dml_objs, function(x) x$coef["W"])
+# std_errors <- sapply(dml_objs, function(x) x$se["W"])
+
+
+# calculate 95% confidence intervals
+lower_bounds <- point_estimates - 1.96 * std_errors
+upper_bounds <- point_estimates + 1.96 * std_errors
+
+# create a data frame for plotting
+df <- data.frame(
+    model = paste0("Model ", seq_along(dml_objs)),
+    estimate = point_estimates,
+    lower = lower_bounds,
+    upper = upper_bounds
+)
+
+# plot point estimates with error bars representing the confidence intervals
+ggplot(df, aes(x=model, y=estimate)) +
+    geom_point() +
+    geom_errorbar(aes(ymin=lower, ymax=upper), width=0.2) +
+    xlab("Model") +
+    ylab("Point Estimate")
+
+
+
+```
+
+
 
 
 
