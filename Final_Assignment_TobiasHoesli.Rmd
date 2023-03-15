@@ -16,6 +16,39 @@ output:
 Briefly describe in your own words (and potentially formulas) the general idea of Double Machine Learning. What is the crucial property that makes it work? What should the nuisance parameter predictions fulfill for Double ML to work?
 
 <br>
+
+Double Machine Learning (DML) is a method for estimating treatment effects when all potential confounders/controls are observed but are either too many for classical statistical approaches to be applicable or their effect on the treatment and outcome cannot be satisfactorily modeled by parametric functions. The crucial property that makes it work is its ability to isolate the effects of a treatment without being unduly influenced by covariates .
+
+In other words, DML is an attempt to understand the effect a treatment has on a response without being unduly influenced by other factors. This is achieved through a number of steps that involve estimating nuisance parameters via machine learning methods and using them in the computation of the Neyman orthogonal score function.
+
+The idea behind DML is to use machine learning methods to estimate the nuisance parameters in a way that allows us to isolate the effect of the treatment from other factors. This is done by first estimating the conditional expectation of the outcome given the covariates and treatment using machine learning methods. Then, we estimate the conditional expectation of the treatment given the covariates using machine learning methods. These two estimates are then used to compute an orthogonal score function which can be used to estimate the treatment effect.
+
+One of the key advantages of DML over other methods for estimating treatment effects is its ability to handle high-dimensional data and non-parametric relationships between covariates and outcomes. This makes it well-suited for applications where there are many potential confounders or where it is difficult to specify a parametric model for their relationship with outcomes.
+
+In summary, Double Machine Learning (DML) provides a powerful tool for estimating treatment effects in situations where traditional statistical approaches may not be applicable due to high dimensionality or non-parametric relationships between covariates and outcomes. Its ability to isolate treatment effects from other factors makes it an attractive option for researchers looking to understand causal relationships in complex data sets.
+
+
+Double Machine Learning (DML) is a method for estimating treatment effects in the presence of many observed covariates. Let $Y$ denote the outcome variable, $D$ denote the treatment variable and $X$ denote the vector of covariates. The goal of DML is to estimate the average treatment effect $\theta_0 = E[Y(1) - Y(0)]$, where $Y(d)$ denotes the potential outcome under treatment level $d \in {0, 1}$.
+
+Classical statistical approaches may not be applicable when there are many covariates or when their effect on the treatment and outcome cannot be satisfactorily modeled by parametric functions. DML addresses this issue by using machine learning methods to estimate nuisance functions that allow us to isolate the effect of the treatment from other factors.
+
+The first step in DML is to estimate two nuisance functions: (1) The conditional expectation function of the outcome given covariates and treatment: $\hat{\mu}(X,D) = E[Y|X,D]$; and (2) The propensity score function: $\hat{e}(X) = E[D|X]$. These functions can be estimated using flexible machine learning methods.
+
+Next, we compute an orthogonal score function based on these estimates. For example, in a partially linear regression model with a binary treatment variable, we can use Neyman’s orthogonal score function:
+
+$$ \Psi_{\mu,e}(Y,D,X)=\left(D-\hat{e}(X)\right)\left(Y-\hat{\mu}(X,D)\right)-\left(D-\hat{e}(X)\right)\left(\hat{\mu}(X,1)-\hat{\mu}(X,0)\right). $$
+
+The average treatment effect can then be estimated as:
+
+$$ \hat{\theta}=\frac{1}{n}\sum_{i=1}^{n}\Psi_{\mu,e}\left(Y_{i},D_{i},X_{i}\right). $$
+
+One advantage of DML over other methods for estimating treatment effects is its ability to handle high-dimensional data and non-parametric relationships between covariates and outcomes. This makes it well-suited for applications where there are many potential confounders or where it is difficult to specify a parametric model for their relationship with outcomes.
+
+In summary, Double Machine Learning (DML) provides a powerful tool for estimating treatment effects in situations where traditional statistical approaches may not be applicable due to high dimensionality or complex relationships between covariates and outcomes.
+
+
+
+
 <br>
 
 
@@ -212,8 +245,41 @@ print(dml_irm_obj_1)
 ### Version 2 
 
 
+```{r}
+
+
+set.seed(123)
+
+ml_g_irm <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_m_irm <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+
+obj_dml_data <-  DoubleMLData$new(data_pension,
+                                y_col="Y",
+                                d_cols="W",
+                                x_cols = cols)
+dml_irm_obj_2 <- DoubleMLIRM$new(obj_dml_data, ml_g_irm, ml_m_irm)
+dml_irm_obj_2$fit()
+print(dml_irm_obj_1)
+
+
+
+
+```
+
+
+
 
 ## Interactive IV model for LATE (IIVM)
+
+This model uses three different machine learning learners: ml_g_iivm_1, ml_m_iivm_1, and ml_r_iivm_1. All three learners are based on the random forest algorithm (ranger), but they serve different purposes in the IIVM model.
+
+ml_g_iivm_1 is a regression learner (regr.ranger) that is used to estimate the so-called “nuisance function” g0 in the first stage of the IIVM model. This function captures the relationship between the instrument variable(s) Z and the covariates X.
+
+ml_m_iivm_1 is a classification learner (classif.ranger) that is used to estimate the nuisance function m0 in the first stage of the IIVM model. This function captures the relationship between the treatment variable(s) W and the covariates X.
+
+ml_r_iivm_1 is a clone of ml_m_iivm_1 and is also a classification learner (classif.ranger). It is used to estimate another nuisance function r0 in the second stage of the IIVM model. This function captures how well we can predict Y from Z after controlling for X.
+
+All three learners are random forests with 100 trees (num.trees = 100) and use all but one of the available predictor variables at each split (mtry = ncol(X)-1). The minimum size of terminal nodes is set to 2 (min.node.size = 2) and trees can grow up to a maximum depth of 5 (max.depth = 5).
 
 
 ### Version 1 
@@ -242,6 +308,16 @@ print(dml_iivm_obj_1)
 ```
 
 
+## Final Model (Hyperparameter Tunining)
+
+
+```{r}
+
+
+
+```
+
+
 
 ## Plot Model Evaluations
 
@@ -251,8 +327,8 @@ dml_objs <- list(dml_plr_obj_classif,dml_plr_obj,
                  dml_pliv_obj,
                  dml_irm_obj_1,
                  dml_iivm_obj_1)
-names <- c("PLR", "PLIV", "IRM", "IIVM")
-model_names <- (rep(names, each = 2))
+names <-c("PLR", "PLIV", "IRM", "IIVM")
+model_names <- c(rep(names, each = 2),"IIVM_HPT")
 
 
 point_estimates <- sapply(dml_objs, function(x) x$coef)
