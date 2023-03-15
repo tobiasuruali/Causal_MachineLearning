@@ -70,23 +70,25 @@ cols <- cols[!cols %in% c("Y", "W", "Z")]
 ```
 
 
-### Partially linear regression model (PLR)
+## Partially linear regression model (PLR)
+
+Explanation of Estimator ML Methods
+
+### Version 1 (Regression Random Forrest)
 
 ```{r}
 
 library(DoubleML)
 library(mlr3)
 library(mlr3learners)
-library(data.table)
+
+set.seed(123)
+
 lgr::get_logger("mlr3")$set_threshold("warn")
 learner <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 # learner <- lrn("regr.ranger")
 ml_l = learner$clone()
 ml_m = learner$clone()
-set.seed(1111)
-# data = make_plr_CCDDHNR2018(alpha=0.5, n_obs=500, dim_x=20, return_type='data.table')
-# obj_dml_data <- data_pension %>% DoubleMLData$new(y_col = 'Y', d_cols = 'W')
-
 
 obj_dml_data <- double_ml_data_from_data_frame(data_pension,
                                         y_col = "Y",
@@ -100,6 +102,7 @@ print(dml_plr_obj)
 
 
 ```
+### Version 2 (Regression and Classification Random Forest)
 
 
 ```{r}
@@ -112,22 +115,76 @@ library(mlr3learners)
 dml_data <- double_ml_data_from_data_frame(pension,
                                         y_col = "net_tfa",
                                         d_cols = "p401",
-                                        x_cols = c("age", "educ", "fsize", "marr"))
+                                        x_cols = cols)
 
 # Set up the machine learning methods for m & g
 learner_l <- lrn("regr.ranger")
 learner_m <- lrn("classif.ranger")
 
 # Initialize an object of class DoubleMLPLR
-dml_plr_obj <- DoubleMLPLR$new(dml_data,
+dml_plr_obj_classif <- DoubleMLPLR$new(dml_data,
                                ml_l = learner_l,
                                ml_m = learner_m)
 
 # Estimate the treatment effect
-dml_plr_obj$fit()
-dml_plr_obj$summary()
-print(dml_plr_obj)
+dml_plr_obj_classif$fit()
+dml_plr_obj_classif$summary()
+print(dml_plr_obj_classif)
 
 ```
+
+## Partially linear IV regression model (PLIV)
+
+
+### Version 1 
+
+```{r}
+
+set.seed(123)
+
+learner = lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_l_pliv = learner$clone()
+ml_m_pliv = learner$clone()
+ml_r_pliv = learner$clone()
+
+obj_dml_data_pliv = DoubleMLData$new(data_pension,
+                                     y_col="Y",
+                                     d_col = "W",
+                                     z_cols= "Z",
+                                     x_cols = cols)
+dml_pliv_obj = DoubleMLPLIV$new(obj_dml_data_pliv, ml_l_pliv, ml_m_pliv, ml_r_pliv)
+dml_pliv_obj$fit()
+print(dml_pliv_obj)
+
+
+```
+### Version 2 
+
+```{r}
+
+set.seed(123)
+
+#use different classifier
+learner = lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_l_pliv = learner$clone()
+ml_m_pliv = learner$clone()
+ml_r_pliv = learner$clone()
+
+obj_dml_data_pliv = DoubleMLData$new(data_pension,
+                                     y_col="Y",
+                                     d_col = "W",
+                                     z_cols= "Z",
+                                     x_cols = cols)
+dml_pliv_obj = DoubleMLPLIV$new(obj_dml_data_pliv, ml_l_pliv, ml_m_pliv, ml_r_pliv)
+dml_pliv_obj$fit()
+print(dml_pliv_obj)
+
+
+
+
+```
+
+
+
 
 
