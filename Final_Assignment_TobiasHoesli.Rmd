@@ -207,7 +207,7 @@ print(dml_pliv_obj)
 
 ```{r}
 
-dml_objs <- list(dml_plr_obj_classif, dml_pliv_obj)
+dml_objs <- list(dml_plr_obj_classif,dml_plr_obj, dml_pliv_obj)
 
 point_estimates <- sapply(dml_objs, function(x) x$coef)
 std_errors <- sapply(dml_objs, function(x) x$se)
@@ -229,11 +229,14 @@ df <- data.frame(
 
 # plot point estimates with error bars representing the confidence intervals
 ggplot(df, aes(x=model, y=estimate)) +
-    geom_point() +
-    geom_errorbar(aes(ymin=lower, ymax=upper), width=0.2) +
+    geom_point(aes(color=model), size=3) +
+    geom_errorbar(aes(ymin=lower, ymax=upper), width=0.2, color="grey80") +
+    scale_color_brewer(palette="Set1") +
+    theme_light() +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    ggtitle("Model Evaluation") +
     xlab("Model") +
     ylab("Point Estimate")
-
 
 
 ```
