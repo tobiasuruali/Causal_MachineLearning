@@ -31,13 +31,6 @@ $$
 
 The average treatment effect (ATE) can then be estimated as:
 
-$$
-\begin{align}
-\hat{\tau}_{ATE} &= \frac{1}{n}\sum_{i=1}^n \psi(W_i;\theta,\eta) \\
-&= \frac{1}{n}\sum_{i=1}^n \left[(g(1,Z_i) - g(0,Z_i)) + D_i(Y_i-g(1,Z_i)) m(Z_i) - (1-D_i)(Y_i-g(0,Z_i)) 1-m(Z_i)-\theta\right]
-\end{align}
-$$
-
 
 $$
 \begin{aligned}
