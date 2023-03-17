@@ -222,7 +222,8 @@ Since $D|W$ is a binary treament variable, we can use classification learners fo
 ### Model 5 (Support Vector Machine SVM) & 6 (XGBoost)
 
 For the IRM Model, there's now an option to utilize both regression and classification learners. 
-An effective technique for classification and regression issues is SVM. Gradient boosted decision trees are implemented using XGBoost, which is designed to be fast and effective in terms of implementation and performance.
+SVMs are useful for classification and regression because they can handle high-dimensional data and identify the best decision boundaries. SVMs employ a method known as the kernel trick, where data is transformed into a higher dimensional space so that a linear decision boundary may be located more easily.  
+Gradient boosted decision trees are implemented using XGBoost, which is designed to be fast and effective in terms of implementation and performance.
 
 ```{r}
 library(xgboost)
