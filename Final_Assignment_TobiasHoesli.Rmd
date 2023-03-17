@@ -25,6 +25,7 @@ The first step in DML is to estimate two nuisance functions: (1) The conditional
 
 Next, we compute an orthogonal score function based on these estimates. For example, in a  Interactive regression model (IRM) with a binary treatment variable, we can use Neyman’s orthogonal score function: *($W$ is the data, $Y$ the outcome variable, $D$ the treatment variable and $X$ covariates)*
 
+
 $$
 \psi(W;\theta,\eta) := (g(1,X) - g(0,X)) + D(Y-g(1,X)) m(X) - (1-D)(Y-g(0,X)) 1-m(X)-\theta
 $$
@@ -40,7 +41,7 @@ $$
 
 One advantage of DML over other methods for estimating treatment effects is its ability to handle high-dimensional data and non-parametric relationships between covariates and outcomes. This makes it well-suited for applications where there are many potential confounders or where it is difficult to specify a parametric model for their relationship with outcomes.
 
-Double Machine Learning (DML) provides a powerful tool for estimating treatment effects in situations where traditional statistical approaches may not be applicable due to high dimensionality or complex relationships between covariates and outcomes.But for DML to work,predictions of nuisance parameters must be low-biased and meet regularity conditions. 
+Double Machine Learning (DML) provides a powerful tool for estimating treatment effects in situations where traditional statistical approaches may not be applicable due to high dimensionality or complex relationships between covariates and outcomes. DML's capacity to isolate treatment effects without being overly impacted by variables is a crucial component that makes it effective. But for DML to work, predictions of nuisance parameters must be low-biased and meet regularity conditions. 
 
 
 <br>
@@ -222,8 +223,8 @@ Since $D|W$ is a binary treament variable, we can use classification learners fo
 ### Model 5 (Support Vector Machine SVM) & 6 (XGBoost)
 
 For the IRM Model, there's now an option to utilize both regression and classification learners. 
-SVMs are useful for classification and regression because they can handle high-dimensional data and identify the best decision boundaries. SVMs employ a method known as the kernel trick, where data is transformed into a higher dimensional space so that a linear decision boundary may be located more easily.  
-Gradient boosted decision trees are implemented using XGBoost, which is designed to be fast and effective in terms of implementation and performance.
+*SVMs* are useful for classification and regression because they can handle high-dimensional data and identify the best decision boundaries. SVMs employ a method known as the kernel trick, where data is transformed into a higher dimensional space so that a linear decision boundary may be located more easily.  
+Gradient boosted decision trees are implemented using *XGBoost*, which is designed to be fast and effective in terms of implementation and performance.It can also be utilized for both classification and regression problems.
 
 ```{r}
 library(xgboost)
@@ -381,7 +382,8 @@ ggplot(df, aes(x=model, y=estimate)) +
     xlab("Model") +
     ylab("Point Estimate")
 
-ci_widths_df <- data.frame(model = df$model, ci_width = ci_widths)
+ci_widths_df <- data.frame(model = df$model,
+                           point_estimates = point_estimates ,ci_width = ci_widths)
 ci_widths_df
 ```
 
@@ -422,9 +424,9 @@ Based on this, we will now perform Hyperparameter tuning to determine if we can 
 ## Final Model (Hyperparameter Tunining)
 
 In the Evaluation we can observe that the best performing model in terms of Confidence intervall is **Model 6 IRM**. In terms of statistical significance on the other hand it ranks in the lower half. With help of the `mlr3tuning` package I will now attempt to improve the model with Hyper Parameter Tuning for the Regression learner mainly.  
-*For the Classification Learner it is unfortunately a bit more complicated (W needs to be of type factor) and when I attempted to work around this, the model did not improve.*
+*For the Classification Learner it is unfortunately a bit more complicated ($W|D$ needs to be of type factor) and when I attempted to work around this, the model did not improve.*
 
-### XGBOOST Hyper Parameter Tuning 
+### Model 9 (XGBoost Hyper Parameter Tuning)
 
 ```{r}
 
@@ -563,7 +565,7 @@ ggplot(df, aes(x=model, y=estimate)) +
     xlab("Model") +
     ylab("Point Estimate")
 
-ci_widths_df <- data.frame(model = df$model, ci_width = ci_widths)
+ci_widths_df <- data.frame(model = df$model, point_estimates = point_estimates ,ci_width = ci_widths)
 ci_widths_df
 
 ```
@@ -599,6 +601,6 @@ p_value_df
 
 ```
 
-As we can see, our **Model 9 IRM_HPT** performs the best in terms of Confidence interval and also delivers the 2nd highest statistical significance.Thus thorougly improving the baseline XGBoost IRM model.
+As we can see, our **Model 9 IRM_HPT** performs the best in terms of Confidence interval and also delivers the 2nd highest statistical significance.Thus thorougly improving the baseline XGBoost IRM model.Which means more relisable and precise treatment effect estimations. In the context of Causal Machine Learning, This corresponds to a better ability to derive reliable conclusions about the causal links between variables.
 
 
