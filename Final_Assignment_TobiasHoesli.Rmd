@@ -23,13 +23,29 @@ Classical statistical approaches may not be applicable when there are many covar
 
 The first step in DML is to estimate two nuisance functions: (1) The conditional expectation function of the outcome given covariates and treatment: $\hat{\mu}(X,D) = E[Y|X,D]$; and (2) The propensity score function: $\hat{e}(X) = E[D|X]$. To account for confounding variables and lessen bias in treatment effect estimations, these nuisance parameters are used and can be estimated using flexible machine learning methods.
 
-Next, we compute an orthogonal score function based on these estimates. For example, in a partially linear regression model with a binary treatment variable, we can use Neyman’s orthogonal score function:
+Next, we compute an orthogonal score function based on these estimates. For example, in a partially linear regression model with a binary treatment variable, we can use Neyman’s orthogonal score function: *($W$ is the data, $Y$ the outcome variable, $D$ the treatment variable and $X$ covariates)*
 
-$$ \Psi_{\mu,e}(Y,D,X)=\left(D-\hat{e}(X)\right)\left(Y-\hat{\mu}(X,D)\right)-\left(D-\hat{e}(X)\right)\left(\hat{\mu}(X,1)-\hat{\mu}(X,0)\right). $$
+$$
+\varphi(W; \theta, \eta)=\varphi(W; \theta, g, m)=(Y - \theta D - g(X)) (D-m(X))
+$$
 
-The average treatment effect can then be estimated as:
+The average treatment effect (ATE) can then be estimated as:
 
-$$ \hat{\theta}=\frac{1}{n}\sum_{i=1}^{n}\Psi_{\mu,e}\left(Y_{i},D_{i},X_{i}\right). $$
+$$
+\begin{align}
+\hat{\tau}_{ATE} &= \frac{1}{n}\sum_{i=1}^n \psi(W_i;\theta,\eta) \\
+&= \frac{1}{n}\sum_{i=1}^n \left[(g(1,Z_i) - g(0,Z_i)) + D_i(Y_i-g(1,Z_i)) m(Z_i) - (1-D_i)(Y_i-g(0,Z_i)) 1-m(Z_i)-\theta\right]
+\end{align}
+$$
+
+
+$$
+\begin{aligned}
+\hat{\tau}_{ATE} &= \frac{1}{n}\sum_{i=1}^n \psi(W_i;\theta,\eta) \\
+\psi(W ; \theta, \eta) & :=g(1, X)-g(0, X)+\frac{D(Y-g(1, X))}{m(X)}-\frac{(1-D)(Y-g(0, X))}{1-m(x)}-\theta \\
+& =\psi_a(W ; \eta) \theta+\psi_b(W ; \eta)
+\end{aligned}
+$$
 
 One advantage of DML over other methods for estimating treatment effects is its ability to handle high-dimensional data and non-parametric relationships between covariates and outcomes. This makes it well-suited for applications where there are many potential confounders or where it is difficult to specify a parametric model for their relationship with outcomes.
 
