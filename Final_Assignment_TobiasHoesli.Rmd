@@ -108,10 +108,10 @@ We have a regression problem because our outcome variable, net tfa, which repres
 The outcome variable $Y$ is modeled as a linear function of the policy variable $D$ and additional confounding factors $X$ in a partly linear regression model (PLR). The model's objective is to determine the causal relationship between $D$ and $Y$ while accounting for the impact of $X$. Since our outcome variable is continous a regression learner will always be utuilized for $Y$.
 For $D$ it is appropiate to use a classification learner, since $D$ (`e401`) is a binary value.
 
-As a baseline, the first models will be a simple Linear & Logistic Regression for `ml_l` and `ml_l`. Our second model will be a **Penalized** Linear & Logistic Regression. This will serve as a baseline as they're normally the "simplest" type of model to implement.
-Documentation to all available models can be found on [mlr3learners](https://mlr-org.com/learners.html)
-
 ### Model 1 (Linear & Logistic Regression) & 2 (Penalized Linear & Logistic Regression)
+
+As a baseline, the first models will be a simple *Linear & Logistic Regression* for `ml_l` and `ml_l`. Our second model will be a **Penalized** *Linear & Logistic Regression*. This will serve as a baseline as they're normally the "simplest" type of model to implement.
+Documentation to all available models can be found on [mlr3learners](https://mlr-org.com/learners.html)
 
 ```{r}
 
@@ -160,10 +160,12 @@ print(dml_plr_obj_2)
 
 ## Partially linear IV regression model (PLIV)
 
-For PLIV we had an additional Variable $Z$ that denotes one or more instrumental variables. For our example, we have `e401` which denotes the elligibility to the program. This is a logical value, but this doesn't mean we can use classification for our learner $Z$. Based on the documentation, PLIV's `ml_r` learner determines the conditional expectation of $Y$ and $D|W$ given $X$. Which makes it a regression problem.If I understood it correctly, the `ml_m` model, PLIV uses $Z$ to account for endogeneity - unobserved factors that affect both $D$ and $Y$. Which is why it also needs a regression learner.
+For PLIV we had an additional Variable $Z$ that denotes one or more instrumental variables. For our example, we have `e401` which denotes the elligibility to the program. This is a logical value, but this doesn't mean we can use classification for our learner $Z$. Based on the documentation, PLIV's `ml_r` learner determines the conditional expectation of $Y$ and $D|W$ given $X$. Which makes it a regression problem.If I understood it correctly, the `ml_m` model, PLIV uses $Z$ to account for endogeneity - unobserved factors that affect both $D$ and $Y$. Which is why it also needs a regression learner.  
 *This was a bit hard to find information on, please could you inform me if what I wrote is incorrect.This model doesn't accept any classification learners and this is all the information I could find on why.*
 
 ### Model 3 (K-Nearest Neighbor) & 4 (Neural Network)
+
+Regression issues can be addressed using K-Nearest Neighbor (KNN) and Neural Network learners. *KNN* is a non-parametric algorithm that makes no assumptions about the data being used as input. *Neural Networks* are adaptable models that can more efficiently model complex data than conventional techniques.
 
 ```{r}
 library(kknn)
@@ -212,11 +214,15 @@ print(dml_pliv_obj_2)
 
 
 ## Interactive regression model for ATE (IRM)
-
-
+For IRM we have an outcome variable Y and a binary treatment variable D. The model takes the form $Y = g_0(D,X) + U$, $D = m_0(X) + V$, with $E[U|X,D]=0$ and $E[V|X] = 0$
+Based on the documentation, IRM use machine learning techniques to calculate Neyman orthogonal scoring function and estimate nuisance functions. Through the use of Double Machine Learning techniques, this enables us to estimate causal effects.
+Since $D|W$ is a binary treament variable, we can use classification learners for `ml_m`
 
 
 ### Model 5 (Support Vector Machine SVM) & 6 (XGBoost)
+
+For the IRM Model, there's now an option to utilize both regression and classification learners. 
+An effective technique for classification and regression issues is SVM. Gradient boosted decision trees are implemented using XGBoost, which is designed to be fast and effective in terms of implementation and performance.
 
 ```{r}
 library(xgboost)
@@ -259,18 +265,15 @@ print(dml_irm_obj_2)
 
 ## Interactive IV model for LATE (IIVM)
 
-This model uses three different machine learning learners: ml_g_iivm_1, ml_m_iivm_1, and ml_r_iivm_1. All three learners are based on the random forest algorithm (ranger), but they serve different purposes in the IIVM model.
-
-ml_g_iivm_1 is a regression learner (regr.ranger) that is used to estimate the so-called “nuisance function” g0 in the first stage of the IIVM model. This function captures the relationship between the instrument variable(s) Z and the covariates X.
-
-ml_m_iivm_1 is a classification learner (classif.ranger) that is used to estimate the nuisance function m0 in the first stage of the IIVM model. This function captures the relationship between the treatment variable(s) W and the covariates X.
-
-ml_r_iivm_1 is a clone of ml_m_iivm_1 and is also a classification learner (classif.ranger). It is used to estimate another nuisance function r0 in the second stage of the IIVM model. This function captures how well we can predict Y from Z after controlling for X.
-
-All three learners are random forests with 100 trees (num.trees = 100) and use all but one of the available predictor variables at each split (mtry = ncol(X)-1). The minimum size of terminal nodes is set to 2 (min.node.size = 2) and trees can grow up to a maximum depth of 5 (max.depth = 5).
-
+Interactive IV Model (IIVM) comparable to the Interactive Regression Model (IRM), but adds the binary instrumental variable $Z$. With $E[U|X,D,Z]=0$ and $E[V|X,Z]=0$, the model has the following formulas: $Y = g 0(D,X) + U$, $D = m 0(Z,X) + V$.
+Since Both $D|W$ and $Z$ are both binary values, we can utilize classification learners for `ml_m` and `ml_r`.
 
 ### Model 7 (Random Forrest) & 8 (Combination)
+
+As a last learner, I elected to utilize the *Random Forest* learner.It is a meta-estimator that employs averaging to increase predictive accuracy and reduce overfitting after fitting numerous decision tree classifiers to different subsamples of the dataset.
+
+Additionally I wanted to experiment with a combination of different models. So I utilized a *Random Forest* regression learner and a *XGBoost* classification learners, since it performed well in Model 5. Additionally, both models are a type of Decision tree, so the assumption can be made that a combination of the 2 could bare great results.
+
 
 ```{r}
 
@@ -288,9 +291,9 @@ ml_m_iivm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.nod
 ml_r_iivm_1 <-  ml_m_iivm_1$clone()
 
 #Version 2 Combination
-ml_g_iivm_2 <-  lrn("regr.xgboost")
-ml_m_iivm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_r_iivm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_g_iivm_2 <-  lrn("regr.ranger")
+ml_m_iivm_2 <-  lrn("classif.xgboost")
+ml_r_iivm_2 <-  lrn("classif.xgboost")
 
 #Version 1
 dml_iivm_obj_1 <-  DoubleMLIIVM$new(obj_dml_data_z, 
@@ -380,6 +383,7 @@ ggplot(df, aes(x=model, y=estimate)) +
 ci_widths_df <- data.frame(model = df$model, ci_width = ci_widths)
 ci_widths_df
 ```
+
 ```{r}
 
 set.seed(123)
@@ -416,15 +420,15 @@ Based on this, we will now perform Hyperparameter tuning to determine if we can 
 
 ## Final Model (Hyperparameter Tunining)
 
-In the Evaluation we can observe that the best performing model in terms of Confidence intervall is **Model 5 IRM**. In terms of statistical significance on the other hand it ranks in the lower half. With help of the `mlr3tuning` package I will now attempt to improve the model with Hyper Parameter Tuning for the Regression learner mainly.
-For the Classification Learner it is unfortunately a bit more complicated (W needs to be of type factor) and when I attempted to work around this, the model did not improve.
+In the Evaluation we can observe that the best performing model in terms of Confidence intervall is **Model 6 IRM**. In terms of statistical significance on the other hand it ranks in the lower half. With help of the `mlr3tuning` package I will now attempt to improve the model with Hyper Parameter Tuning for the Regression learner mainly.  
+*For the Classification Learner it is unfortunately a bit more complicated (W needs to be of type factor) and when I attempted to work around this, the model did not improve.*
 
 ### XGBOOST Hyper Parameter Tuning 
 
 ```{r}
 
 # Set log level to 'warn' to mute info messages
-# lgr::get_logger("mlr3")$set_threshold("warn")
+lgr::get_logger("mlr3")$set_threshold("warn")
 set.seed(123)
 
 
@@ -594,6 +598,6 @@ p_value_df
 
 ```
 
-
+As we can see, our **Model 9 IRM_HPT** performs the best in terms of Confidence interval and also delivers the 2nd highest statistical significance.Thus thorougly improving the baseline XGBoost IRM model.
 
 
