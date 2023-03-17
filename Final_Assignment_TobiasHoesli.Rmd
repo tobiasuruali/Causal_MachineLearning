@@ -489,7 +489,6 @@ library(mlr3tuning)
 obj_dml_data_9 <- DoubleMLData$new(data_pension,
                                       y_col = "Y",
                                       d_col = "W",
-                                      z_cols = "Z",
                                       x_cols = cols)
 
 #The instance classifier for classifier learner needs a factor variable
@@ -498,7 +497,6 @@ data_pension_tuning$W <- as.factor(data_pension_tuning$W)
 obj_dml_data_9_factor <- DoubleMLData$new(data_pension_tuning,
                                       y_col = "Y",
                                       d_col = "W",
-                                      z_cols = "Z",
                                       x_cols = cols)
 
 
@@ -563,10 +561,9 @@ ml_m_irm_9$param_set$values<-best_params_classif
 
 ml_r_irm_9 <- ml_m_irm_9$clone()
 
-dml_irm_obj_9 <-DoubleMLIIVM$new(obj_dml_data_9,
+dml_irm_obj_9 <-DoubleMLIRM$new(obj_dml_data_9,
                                ml_g_irm_9,
-                               ml_m_irm_9,
-                               ml_r_irm_9)
+                               ml_m_irm_9)
 
 dml_irm_obj_9$fit()
 print(dml_irm_obj_9)
