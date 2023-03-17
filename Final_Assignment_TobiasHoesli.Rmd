@@ -79,6 +79,7 @@ library(mlr3)
 library(mlr3learners)
 library(mlr3tuning)
 library(ggplot2)
+library(data.table)
 
 # Get data
 data(pension)
@@ -107,7 +108,8 @@ We have a regression problem because our outcome variable, net tfa, which repres
 The outcome variable $Y$ is modeled as a linear function of the policy variable $D$ and additional confounding factors $X$ in a partly linear regression model (PLR). The model's objective is to determine the causal relationship between $D$ and $Y$ while accounting for the impact of $X$. Since our outcome variable is continous a regression learner will always be utuilized for $Y$.
 For $D$ it is appropiate to use a classification learner, since $D$ (`e401`) is a binary value.
 
-
+As a baseline, the first models will be a simple Linear & Logistic Regression for `ml_l` and `ml_l`. Our second model will be a **Penalized** Linear & Logistic Regression. This will serve as a baseline as they're normally the "simplest" type of model to implement.
+Documentation to all available models can be found on [mlr3learners](https://mlr-org.com/learners.html)
 
 ### Version I (Regression Random Forrest) & II ()
 
@@ -122,16 +124,14 @@ obj_dml_data <- double_ml_data_from_data_frame(data_pension,
                                         x_cols = cols)
 
 
-# Version 1
-learner <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-# learner <- lrn("regr.ranger")
-ml_l_plr_1 <-  learner$clone()
-ml_m_plr_1 <-  learner$clone()
+# Version 1 Linear Regression & Logistic Regression
+ml_l_plr_1 <-  lrn("regr.lm")
+ml_m_plr_1 <-  lrn("classif.log_reg")
 
 
-#Version 2
-ml_l_plr_2 <- lrn("regr.ranger")
-ml_m_plr_2 <- lrn("classif.ranger")
+#Version 2 Penalized Linear & Logistic Regression
+ml_l_plr_2 <- lrn("regr.glmnet", s = 1/ncol(X)) #added rule of thumb lambda
+ml_m_plr_2 <- lrn("classif.glmnet", s=1/ncol(X))
 
 
 
@@ -160,10 +160,14 @@ print(dml_plr_obj_2)
 
 ## Partially linear IV regression model (PLIV)
 
+For PLIV we had an additional Variable $Z$ that denotes one or more instrumental variables. For our example, we have `e401` which denotes the elligibility to the program. This is a logical value, but this doesn't mean we can use classification for our learner $Z$. Based on the documentation, PLIV's `ml_r` learner determines the conditional expectation of $Y$ and $D|W$ given $X$. Which makes it a regression problem.If I understood it correctly, the `ml_m` model, PLIV uses $Z$ to account for endogeneity - unobserved factors that affect both $D$ and $Y$. Which is why it also needs a regression learner.
+*This was a bit hard to find information on, please could you inform me if what I wrote is incorrect.This model doesn't accept any classification learners and this is all the information I could find on why.*
 
-### Version I () & II ()
+### Version I (K-Nearest Neighbor) & II (Neural Network)
 
 ```{r}
+library(kknn)
+library(nnet)
 
 set.seed(123)
 
@@ -172,18 +176,16 @@ obj_dml_data_z <- DoubleMLData$new(data_pension,
                                      d_col = "W",
                                      z_cols= "Z",
                                      x_cols = cols)
-#version 1
-learner <- lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_l_pliv_1 <- learner$clone()
-ml_m_pliv_1 <- learner$clone()
-ml_r_pliv_1 <- learner$clone()
+#version 1 K Nearest Neighbour 
+ml_l_pliv_1 <- lrn("regr.kknn")
+ml_m_pliv_1 <- lrn("regr.kknn")
+ml_r_pliv_1 <- lrn("regr.kknn")
 
 
-#Version 2
-learner <- lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_l_pliv_2 <- learner$clone()
-ml_m_pliv_2 <- learner$clone()
-ml_r_pliv_2 <- learner$clone()
+#Version 2 Neural Network
+ml_l_pliv_2 <- lrn("regr.nnet")
+ml_m_pliv_2 <- lrn("regr.nnet")
+ml_r_pliv_2 <- lrn("regr.nnet")
 
 #Version 1
 dml_pliv_obj_1 <- DoubleMLPLIV$new(obj_dml_data_z,
@@ -199,19 +201,26 @@ dml_pliv_obj_2 <- DoubleMLPLIV$new(obj_dml_data_z,
                                  ml_l_pliv_2,
                                  ml_m_pliv_2,
                                  ml_r_pliv_2)
+#suppress nnet output in fit (sink to empty file)
+sink("null")
 dml_pliv_obj_2$fit()
+sink()
+
 print(dml_pliv_obj_2)
-
-
 
 ```
 
 
 ## Interactive regression model for ATE (IRM)
 
-### Version I () & II ()
+
+
+
+### Version I (Support Vector Machine SVM) & II (XGBoost)
 
 ```{r}
+library(xgboost)
+library(e1071) #for SVM
 
 set.seed(123)
 
@@ -219,11 +228,11 @@ obj_dml_data <-  DoubleMLData$new(data_pension,
                                 y_col="Y",
                                 d_cols="W",
                                 x_cols = cols)
-#Version 1
+#Version 1 SVM
 ml_g_irm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 ml_m_irm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 
-#Version 2
+#Version 2 XGBoost
 ml_g_irm_2 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 ml_m_irm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 
@@ -263,7 +272,7 @@ ml_r_iivm_1 is a clone of ml_m_iivm_1 and is also a classification learner (clas
 All three learners are random forests with 100 trees (num.trees = 100) and use all but one of the available predictor variables at each split (mtry = ncol(X)-1). The minimum size of terminal nodes is set to 2 (min.node.size = 2) and trees can grow up to a maximum depth of 5 (max.depth = 5).
 
 
-### Version I () & II ()
+### Version I (Random Forrest) & II (Combination)
 
 ```{r}
 
