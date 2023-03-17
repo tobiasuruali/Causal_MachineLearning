@@ -13,7 +13,7 @@ output:
 <br>
 
 # Theory recap: Double ML (20 points)
-Briefly describe in your own words (and potentially formulas) the general idea of Double Machine Learning. What is the crucial property that makes it work? What should the nuisance parameter predictions fulfill for Double ML to work?
+*Briefly describe in your own words (and potentially formulas) the general idea of Double Machine Learning. What is the crucial property that makes it work? What should the nuisance parameter predictions fulfill for Double ML to work?*
 
 <br>
 
@@ -21,7 +21,7 @@ Double Machine Learning (DML) is a method for estimating treatment effects in th
 
 Classical statistical approaches may not be applicable when there are many covariates or when their effect on the treatment and outcome cannot be satisfactorily modeled by parametric functions. DML addresses this issue by using machine learning methods to estimate nuisance functions that allow us to isolate the effect of the treatment from other factors.
 
-The first step in DML is to estimate two nuisance functions: (1) The conditional expectation function of the outcome given covariates and treatment: $\hat{\mu}(X,D) = E[Y|X,D]$; and (2) The propensity score function: $\hat{e}(X) = E[D|X]$. These functions can be estimated using flexible machine learning methods.
+The first step in DML is to estimate two nuisance functions: (1) The conditional expectation function of the outcome given covariates and treatment: $\hat{\mu}(X,D) = E[Y|X,D]$; and (2) The propensity score function: $\hat{e}(X) = E[D|X]$. To account for confounding variables and lessen bias in treatment effect estimations, these nuisance parameters are used and can be estimated using flexible machine learning methods.
 
 Next, we compute an orthogonal score function based on these estimates. For example, in a partially linear regression model with a binary treatment variable, we can use Neyman’s orthogonal score function:
 
@@ -33,9 +33,7 @@ $$ \hat{\theta}=\frac{1}{n}\sum_{i=1}^{n}\Psi_{\mu,e}\left(Y_{i},D_{i},X_{i}\rig
 
 One advantage of DML over other methods for estimating treatment effects is its ability to handle high-dimensional data and non-parametric relationships between covariates and outcomes. This makes it well-suited for applications where there are many potential confounders or where it is difficult to specify a parametric model for their relationship with outcomes.
 
-In summary, Double Machine Learning (DML) provides a powerful tool for estimating treatment effects in situations where traditional statistical approaches may not be applicable due to high dimensionality or complex relationships between covariates and outcomes.
-
-
+Double Machine Learning (DML) provides a powerful tool for estimating treatment effects in situations where traditional statistical approaches may not be applicable due to high dimensionality or complex relationships between covariates and outcomes.But for DML to work,predictions of nuisance parameters must be low-biased and meet regularity conditions. 
 
 
 <br>
@@ -87,8 +85,7 @@ Z <-  pension$e401
 X <-  model.matrix(~ 0 + age + db + educ + fsize + hown + inc + male + marr + pira + twoearn, data = pension)
 
 
-#add 
-
+#collect all columns in a single data.table
 data_pension <- data.table(cbind(X,W,Z,Y))
 cols <- colnames(data_pension)
 # remove columns Y,W,Z from cols
