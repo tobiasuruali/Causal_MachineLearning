@@ -111,7 +111,7 @@ For $D$ it is appropiate to use a classification learner, since $D$ (`e401`) is 
 As a baseline, the first models will be a simple Linear & Logistic Regression for `ml_l` and `ml_l`. Our second model will be a **Penalized** Linear & Logistic Regression. This will serve as a baseline as they're normally the "simplest" type of model to implement.
 Documentation to all available models can be found on [mlr3learners](https://mlr-org.com/learners.html)
 
-### Version I (Regression Random Forrest) & II ()
+### Model 1 (Linear & Logistic Regression) & 2 (Penalized Linear & Logistic Regression)
 
 ```{r}
 
@@ -163,7 +163,7 @@ print(dml_plr_obj_2)
 For PLIV we had an additional Variable $Z$ that denotes one or more instrumental variables. For our example, we have `e401` which denotes the elligibility to the program. This is a logical value, but this doesn't mean we can use classification for our learner $Z$. Based on the documentation, PLIV's `ml_r` learner determines the conditional expectation of $Y$ and $D|W$ given $X$. Which makes it a regression problem.If I understood it correctly, the `ml_m` model, PLIV uses $Z$ to account for endogeneity - unobserved factors that affect both $D$ and $Y$. Which is why it also needs a regression learner.
 *This was a bit hard to find information on, please could you inform me if what I wrote is incorrect.This model doesn't accept any classification learners and this is all the information I could find on why.*
 
-### Version I (K-Nearest Neighbor) & II (Neural Network)
+### Model 3 (K-Nearest Neighbor) & 4 (Neural Network)
 
 ```{r}
 library(kknn)
@@ -216,11 +216,12 @@ print(dml_pliv_obj_2)
 
 
 
-### Version I (Support Vector Machine SVM) & II (XGBoost)
+### Model 5 (Support Vector Machine SVM) & 6 (XGBoost)
 
 ```{r}
 library(xgboost)
 library(e1071) #for SVM
+lgr::get_logger("mlr3")$set_threshold("warn") #change to "info" to see iterations
 
 set.seed(123)
 
@@ -229,14 +230,14 @@ obj_dml_data <-  DoubleMLData$new(data_pension,
                                 d_cols="W",
                                 x_cols = cols)
 #Version 1 SVM
-ml_g_irm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_m_irm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_g_irm_1 <-  lrn("regr.svm")
+ml_m_irm_1 <-  lrn("classif.svm")
 
 #Version 2 XGBoost
-ml_g_irm_2 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_m_irm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_g_irm_2 <-  lrn("regr.xgboost")
+ml_m_irm_2 <-  lrn("classif.xgboost")
 
-#Version 1
+#Version 1 Takes a bit longer to run
 dml_irm_obj_1 <- DoubleMLIRM$new(obj_dml_data,
                                  ml_g_irm_1,
                                  ml_m_irm_1)
@@ -250,9 +251,6 @@ dml_irm_obj_2 <- DoubleMLIRM$new(obj_dml_data,
                                  ml_m_irm_2)
 dml_irm_obj_2$fit()
 print(dml_irm_obj_2)
-
-
-
 
 ```
 
@@ -272,7 +270,7 @@ ml_r_iivm_1 is a clone of ml_m_iivm_1 and is also a classification learner (clas
 All three learners are random forests with 100 trees (num.trees = 100) and use all but one of the available predictor variables at each split (mtry = ncol(X)-1). The minimum size of terminal nodes is set to 2 (min.node.size = 2) and trees can grow up to a maximum depth of 5 (max.depth = 5).
 
 
-### Version I (Random Forrest) & II (Combination)
+### Model 7 (Random Forrest) & 8 (Combination)
 
 ```{r}
 
@@ -284,15 +282,15 @@ obj_dml_data_z <- DoubleMLData$new(data_pension,
                                 z_cols="Z",
                                 x_cols = cols)
 
-#Version 1
+#Version 1 Random Forrest 
 ml_g_iivm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 ml_m_iivm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 ml_r_iivm_1 <-  ml_m_iivm_1$clone()
 
-#Version 2
-ml_g_iivm_2 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+#Version 2 Combination
+ml_g_iivm_2 <-  lrn("regr.xgboost")
 ml_m_iivm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_r_iivm_2 <-  ml_m_iivm_2$clone()
+ml_r_iivm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
 
 #Version 1
 dml_iivm_obj_1 <-  DoubleMLIIVM$new(obj_dml_data_z, 
@@ -323,7 +321,8 @@ print(dml_iivm_obj_2)
 dml_objs <- list(dml_plr_obj_1,dml_plr_obj_2,
                  dml_pliv_obj_1,dml_pliv_obj_2,
                  dml_irm_obj_1,dml_irm_obj_2,
-                 dml_iivm_obj_1,dml_iivm_obj_2)
+                 dml_iivm_obj_1,dml_iivm_obj_2
+                 )
 names <-c("PLR", "PLIV", "IRM", "IIVM")
 model_names <- c(rep(names, each = 2),"IIVM_HPT")
 
@@ -376,7 +375,8 @@ ggplot(df, aes(x=model, y=estimate)) +
     xlab("Model") +
     ylab("Point Estimate")
 
-
+ci_widths_df <- data.frame(model = df$model, ci_width = ci_widths)
+ci_widths_df
 ```
 ```{r}
 
@@ -400,6 +400,10 @@ ggplot(df, aes(x=model, y=p_value)) +
     labs(subtitle = best_model_text) + # add subtitle
     xlab("Model") +
     ylab("P-value")
+
+p_value_df <- data.frame(model = df$model, p_value = df$p_value)
+p_value_df <- p_value_df[order(p_value_df$p_value),]
+p_value_df
 ```
 
 A model may provide the best accurate estimate of the treatment impact if it has the narrowest confidence interval among the other models being compared. As a result, employing this model as opposed to other models, there is less doubt over the actual value of the treatment impact.
@@ -469,6 +473,201 @@ print(dml_pliv_obj)
 
 
 ```
+
+#XGBOOST 
+
+```{r}
+
+# Set log level to 'warn' to mute info messages
+# lgr::get_logger("mlr3")$set_threshold("warn")
+
+library(DoubleML)
+library(mlr3)
+library(mlr3tuning)
+
+# Set up the data
+obj_dml_data_9 <- DoubleMLData$new(data_pension,
+                                      y_col = "Y",
+                                      d_col = "W",
+                                      z_cols = "Z",
+                                      x_cols = cols)
+
+#The instance classifier for classifier learner needs a factor variable
+data_pension_tuning <- data_pension
+data_pension_tuning$W <- as.factor(data_pension_tuning$W)
+obj_dml_data_9_factor <- DoubleMLData$new(data_pension_tuning,
+                                      y_col = "Y",
+                                      d_col = "W",
+                                      z_cols = "Z",
+                                      x_cols = cols)
+
+
+
+# Set up the learners
+learner_regr <- lrn("regr.xgboost")
+learner_classif <- lrn("classif.xgboost")
+
+# Define the search space for hyperparameters
+param_set_regr <- ParamSet$new(list(
+  ParamDbl$new("eta", lower = 0.1, upper = 1),
+  ParamInt$new("max_depth", lower = 1, upper = 10),
+  ParamInt$new("nrounds", lower = 50, upper = 500)
+))
+
+param_set_classif <- ParamSet$new(list(
+  ParamDbl$new("eta", lower = 0.1, upper = 1),
+  ParamInt$new("max_depth", lower = 1, upper = 10),
+  ParamInt$new("nrounds", lower = 50, upper = 500)
+))
+
+# Set up the tuning instances
+instance_regr <- TuningInstanceSingleCrit$new(
+    task=TaskRegr$new(id="pliv_task",
+                      backend=obj_dml_data_9$data,
+                      target="Y"),
+    learner=learner_regr,
+    resampling=rsmp("cv", folds=5),
+    measure=msr("regr.mse"),
+    search_space=param_set_regr,
+    terminator=trm("evals", n_evals=5)
+)
+
+instance_classif <- TuningInstanceSingleCrit$new(
+    task=TaskClassif$new(id="pliv_task",
+                         backend=obj_dml_data_9_factor$data,
+                         target="W"),
+    learner=learner_classif,
+    resampling=rsmp("cv", folds=5),
+    measure=msr("classif.ce"),
+    search_space=param_set_classif,
+    terminator=trm("evals", n_evals=5)
+)
+
+# Run the tuning
+tuner_regr <- tnr("grid_search")
+tuner_regr$optimize(instance_regr)
+
+tuner_classif <- tnr("grid_search")
+tuner_classif$optimize(instance_classif)
+
+# Extract the best hyperparameters
+best_params_regr <- instance_regr$result_learner_param_vals
+best_params_classif <- instance_classif$result_learner_param_vals
+
+# Update the learners with the best hyperparameters
+ml_g_irm_9 <- learner_regr$clone()
+ml_g_irm_9$param_set$values <- best_params_regr
+
+ml_m_irm_9 <- learner_classif$clone()
+ml_m_irm_9$param_set$values<-best_params_classif
+
+ml_r_irm_9 <- ml_m_irm_9$clone()
+
+dml_irm_obj_9 <-DoubleMLIIVM$new(obj_dml_data_9,
+                               ml_g_irm_9,
+                               ml_m_irm_9,
+                               ml_r_irm_9)
+
+dml_irm_obj_9$fit()
+print(dml_irm_obj_9)
+
+
+
+```
+
+
+```{r}
+dml_objs <- list(dml_plr_obj_1,dml_plr_obj_2,
+                 dml_pliv_obj_1,dml_pliv_obj_2,
+                 dml_irm_obj_1,dml_irm_obj_2,
+                 dml_iivm_obj_1,dml_iivm_obj_2,
+                 dml_irm_obj_9)
+names <-c("PLR", "PLIV", "IRM", "IIVM")
+model_names <- c(rep(names, each = 2),"IIVM_HPT")
+
+
+point_estimates <- sapply(dml_objs, function(x) x$coef)
+std_errors <- sapply(dml_objs, function(x) x$se)
+
+#Add p-values for stat significance
+p_values <- sapply(dml_objs, function(x) x$pval)
+
+# point_estimates <- sapply(dml_objs, function(x) x$coef["W"])
+# std_errors <- sapply(dml_objs, function(x) x$se["W"])
+
+
+# calculate 95% confidence intervals
+lower_bounds <- point_estimates - 1.96 * std_errors
+upper_bounds <- point_estimates + 1.96 * std_errors
+
+
+# create a data frame for plotting and model description
+df <- data.frame(
+    model = paste0("Model ", seq_along(dml_objs)," ",
+                   model_names[1:length(dml_objs)]),
+    estimate = point_estimates,
+    lower = lower_bounds,
+    upper = upper_bounds,
+    p_value = p_values
+)
+
+
+# Determine the narrowest confidence Interval
+# calculate the width of each confidence interval
+ci_widths <- upper_bounds - lower_bounds
+# find the index of the model with the slimest confidence interval width
+best_model_idx <- which.min(ci_widths)
+# get the name of the most secure model
+best_model_name <- df$model[best_model_idx]
+best_model_text <- paste0("The model with the narrowest confidence interval is: ", best_model_name)
+
+# plot point estimates with error bars representing the confidence intervals
+ggplot(df, aes(x=model, y=estimate)) +
+    geom_point(aes(color=model), size=3) +
+    geom_errorbar(aes(ymin=lower, ymax=upper), width=0.2, color="grey80") +
+    scale_color_brewer(palette="Set1") +
+    theme_light() +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          axis.text.x = element_text(angle = 90)) + # rotate x-axis labels
+    ggtitle("Model Evaluation") +
+    labs(subtitle = best_model_text)+
+    xlab("Model") +
+    ylab("Point Estimate")
+
+ci_widths_df <- data.frame(model = df$model, ci_width = ci_widths)
+ci_widths_df
+
+```
+
+```{r}
+
+# find the index of the model with the smallest p-value
+best_model_idx <- which.min(df$p_value)
+
+# get the name of the best model
+best_model_name <- df$model[best_model_idx]
+
+# create text for subtitle
+best_model_text <- paste0("The model with highest statistical significance is: ", best_model_name)
+
+# plot p-values for each model
+ggplot(df, aes(x=model, y=p_value)) +
+    geom_point(aes(color=model), size=3) +
+    scale_color_brewer(palette="Set1") +
+    theme_light() +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          axis.text.x = element_text(angle = 90)) +
+    ggtitle("Model Evaluation (p-values)") +
+    labs(subtitle = best_model_text) + # add subtitle
+    xlab("Model") +
+    ylab("P-value")
+
+p_value_df <- data.frame(model = df$model, p_value = df$p_value)
+p_value_df <- p_value_df[order(p_value_df$p_value),]
+p_value_df
+
+```
+
 
 
 
