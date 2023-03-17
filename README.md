@@ -31,7 +31,7 @@ The outcome variable is `net_fa` and the treatment variable is `p401`.
 
 ## Analysis
 
-The analysis will involve fitting various Double ML models to the data using the `DoubleML` package in R. We will evaluate their performance in estimating treatment effects using a range of evaluation metrics.
+The analysis will involve fitting various Double ML models to the data using the `DoubleML` package in R. We will use the `mlr3learners` package for our estimators and also use `mlr3tuning` for hyperparameter tuning of our learners. We will evaluate their performance in estimating treatment effects using a range of evaluation metrics.
 
 ## Results
 
