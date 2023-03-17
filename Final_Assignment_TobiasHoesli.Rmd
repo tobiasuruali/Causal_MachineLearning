@@ -318,6 +318,8 @@ print(dml_iivm_obj_2)
 
 ```{r}
 
+set.seed(123)
+
 dml_objs <- list(dml_plr_obj_1,dml_plr_obj_2,
                  dml_pliv_obj_1,dml_pliv_obj_2,
                  dml_irm_obj_1,dml_irm_obj_2,
@@ -380,6 +382,8 @@ ci_widths_df
 ```
 ```{r}
 
+set.seed(123)
+
 # find the index of the model with the smallest p-value
 best_model_idx <- which.min(df$p_value)
 
@@ -412,74 +416,17 @@ Based on this, we will now perform Hyperparameter tuning to determine if we can 
 
 ## Final Model (Hyperparameter Tunining)
 
+In the Evaluation we can observe that the best performing model in terms of Confidence intervall is **Model 5 IRM**. In terms of statistical significance on the other hand it ranks in the lower half. With help of the `mlr3tuning` package I will now attempt to improve the model with Hyper Parameter Tuning for the Regression learner mainly.
+For the Classification Learner it is unfortunately a bit more complicated (W needs to be of type factor) and when I attempted to work around this, the model did not improve.
 
-```{r}
-
-library(DoubleML)
-library(mlr3)
-library(mlr3tuning)
-
-# Set up the data
-obj_dml_data_pliv <- DoubleMLData$new(data_pension,
-                                      y_col = "Y",
-                                      d_col = "W",
-                                      z_cols = "Z",
-                                      x_cols = cols)
-
-# Set up the learner
-learner <- lrn("regr.ranger")
-
-# Define the search space for hyperparameters
-param_set <- ParamSet$new(list(
-  ParamInt$new("num.trees", lower = 10, upper = 500),
-  ParamInt$new("mtry", lower = 1, upper = ncol(obj_dml_data_pliv$data)-1),
-  ParamInt$new("min.node.size", lower = 1, upper = 10),
-  ParamInt$new("max.depth", lower = 1, upper = 10)
-))
-
-# Set up the tuning instance
-instance <- TuningInstanceSingleCrit$new(
-  task = TaskRegr$new(id = "pliv_task", backend=obj_dml_data_pliv$data,
-                      target="Y"),
-  learner = learner,
-  resampling = rsmp("cv", folds=5),
-  measure=msr("regr.mse"),
-  search_space=param_set,
-  terminator=trm("evals", n_evals=25)
-)
-
-# Run the tuning
-tuner <- tnr("grid_search")
-tuner$optimize(instance)
-
-# Extract the best hyperparameters
-best_params <- instance$result_learner_param_vals
-
-# Update the learners with the best hyperparameters
-ml_l_pliv <- learner$clone()
-ml_l_pliv$param_set$values <-  best_params
-ml_m_pliv <- learner$clone()
-ml_m_pliv$param_set$values <- best_params
-ml_r_pliv <- learner$clone()
-ml_r_pliv$param_set$values <- best_params
-
-dml_pliv_obj <- DoubleMLPLIV$new(obj_dml_data_pliv,
-                                 ml_l_pliv,
-                                 ml_m_pliv,
-                                 ml_r_pliv)
-
-dml_pliv_obj$fit()
-print(dml_pliv_obj)
-
-
-```
-
-#XGBOOST 
+### XGBOOST Hyper Parameter Tuning 
 
 ```{r}
 
 # Set log level to 'warn' to mute info messages
 # lgr::get_logger("mlr3")$set_threshold("warn")
+set.seed(123)
+
 
 library(DoubleML)
 library(mlr3)
@@ -492,12 +439,12 @@ obj_dml_data_9 <- DoubleMLData$new(data_pension,
                                       x_cols = cols)
 
 #The instance classifier for classifier learner needs a factor variable
-data_pension_tuning <- data_pension
-data_pension_tuning$W <- as.factor(data_pension_tuning$W)
-obj_dml_data_9_factor <- DoubleMLData$new(data_pension_tuning,
-                                      y_col = "Y",
-                                      d_col = "W",
-                                      x_cols = cols)
+# data_pension_tuning <- data_pension
+# data_pension_tuning$W <- as.factor(data_pension_tuning$W)
+# obj_dml_data_9_factor <- DoubleMLData$new(data_pension_tuning,
+#                                       y_col = "Y",
+#                                       d_col = "W",
+#                                       x_cols = cols)
 
 
 
@@ -512,12 +459,6 @@ param_set_regr <- ParamSet$new(list(
   ParamInt$new("nrounds", lower = 50, upper = 500)
 ))
 
-param_set_classif <- ParamSet$new(list(
-  ParamDbl$new("eta", lower = 0.1, upper = 1),
-  ParamInt$new("max_depth", lower = 1, upper = 10),
-  ParamInt$new("nrounds", lower = 50, upper = 500)
-))
-
 # Set up the tuning instances
 instance_regr <- TuningInstanceSingleCrit$new(
     task=TaskRegr$new(id="pliv_task",
@@ -527,39 +468,22 @@ instance_regr <- TuningInstanceSingleCrit$new(
     resampling=rsmp("cv", folds=5),
     measure=msr("regr.mse"),
     search_space=param_set_regr,
-    terminator=trm("evals", n_evals=5)
-)
-
-instance_classif <- TuningInstanceSingleCrit$new(
-    task=TaskClassif$new(id="pliv_task",
-                         backend=obj_dml_data_9_factor$data,
-                         target="W"),
-    learner=learner_classif,
-    resampling=rsmp("cv", folds=5),
-    measure=msr("classif.ce"),
-    search_space=param_set_classif,
-    terminator=trm("evals", n_evals=5)
+    terminator=trm("evals", n_evals=10)
 )
 
 # Run the tuning
 tuner_regr <- tnr("grid_search")
 tuner_regr$optimize(instance_regr)
 
-tuner_classif <- tnr("grid_search")
-tuner_classif$optimize(instance_classif)
 
 # Extract the best hyperparameters
 best_params_regr <- instance_regr$result_learner_param_vals
-best_params_classif <- instance_classif$result_learner_param_vals
 
 # Update the learners with the best hyperparameters
 ml_g_irm_9 <- learner_regr$clone()
 ml_g_irm_9$param_set$values <- best_params_regr
 
 ml_m_irm_9 <- learner_classif$clone()
-ml_m_irm_9$param_set$values<-best_params_classif
-
-ml_r_irm_9 <- ml_m_irm_9$clone()
 
 dml_irm_obj_9 <-DoubleMLIRM$new(obj_dml_data_9,
                                ml_g_irm_9,
@@ -572,15 +496,18 @@ print(dml_irm_obj_9)
 
 ```
 
+## Evaluation of HPT Model
 
 ```{r}
+set.seed(123)
+
 dml_objs <- list(dml_plr_obj_1,dml_plr_obj_2,
                  dml_pliv_obj_1,dml_pliv_obj_2,
                  dml_irm_obj_1,dml_irm_obj_2,
                  dml_iivm_obj_1,dml_iivm_obj_2,
                  dml_irm_obj_9)
 names <-c("PLR", "PLIV", "IRM", "IIVM")
-model_names <- c(rep(names, each = 2),"IIVM_HPT")
+model_names <- c(rep(names, each = 2),"IRM_HPT")
 
 
 point_estimates <- sapply(dml_objs, function(x) x$coef)
@@ -637,6 +564,8 @@ ci_widths_df
 ```
 
 ```{r}
+
+set.seed(123)
 
 # find the index of the model with the smallest p-value
 best_model_idx <- which.min(df$p_value)
