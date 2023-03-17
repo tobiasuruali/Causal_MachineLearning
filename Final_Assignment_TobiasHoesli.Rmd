@@ -17,18 +17,7 @@ Briefly describe in your own words (and potentially formulas) the general idea o
 
 <br>
 
-Double Machine Learning (DML) is a method for estimating treatment effects when all potential confounders/controls are observed but are either too many for classical statistical approaches to be applicable or their effect on the treatment and outcome cannot be satisfactorily modeled by parametric functions. The crucial property that makes it work is its ability to isolate the effects of a treatment without being unduly influenced by covariates .
-
-In other words, DML is an attempt to understand the effect a treatment has on a response without being unduly influenced by other factors. This is achieved through a number of steps that involve estimating nuisance parameters via machine learning methods and using them in the computation of the Neyman orthogonal score function.
-
-The idea behind DML is to use machine learning methods to estimate the nuisance parameters in a way that allows us to isolate the effect of the treatment from other factors. This is done by first estimating the conditional expectation of the outcome given the covariates and treatment using machine learning methods. Then, we estimate the conditional expectation of the treatment given the covariates using machine learning methods. These two estimates are then used to compute an orthogonal score function which can be used to estimate the treatment effect.
-
-One of the key advantages of DML over other methods for estimating treatment effects is its ability to handle high-dimensional data and non-parametric relationships between covariates and outcomes. This makes it well-suited for applications where there are many potential confounders or where it is difficult to specify a parametric model for their relationship with outcomes.
-
-In summary, Double Machine Learning (DML) provides a powerful tool for estimating treatment effects in situations where traditional statistical approaches may not be applicable due to high dimensionality or non-parametric relationships between covariates and outcomes. Its ability to isolate treatment effects from other factors makes it an attractive option for researchers looking to understand causal relationships in complex data sets.
-
-
-Double Machine Learning (DML) is a method for estimating treatment effects in the presence of many observed covariates. Let $Y$ denote the outcome variable, $D$ denote the treatment variable and $X$ denote the vector of covariates. The goal of DML is to estimate the average treatment effect $\theta_0 = E[Y(1) - Y(0)]$, where $Y(d)$ denotes the potential outcome under treatment level $d \in {0, 1}$.
+Double Machine Learning (DML) is a method for estimating treatment effects in the presence of many observed covariates. Let $Y$ denote the outcome variable, $W|D$ denote the treatment variable and $X$ denote the vector of covariates. The goal of DML is to estimate the average treatment effect $\theta_0 = E[Y(1) - Y(0)]$, where $Y(d)$ denotes the potential outcome under treatment level $d \in {0, 1}$.
 
 Classical statistical approaches may not be applicable when there are many covariates or when their effect on the treatment and outcome cannot be satisfactorily modeled by parametric functions. DML addresses this issue by using machine learning methods to estimate nuisance functions that allow us to isolate the effect of the treatment from other factors.
 
@@ -54,7 +43,7 @@ In summary, Double Machine Learning (DML) provides a powerful tool for estimatin
 
 # Practice task: Average effects with and without instrument (60 points)
 
-## 401(k) dataset again
+## 401(k) dataset 
 
 We again use the data of the `hdm` package. The data was used in [Chernozhukov and Hansen (2004)](https://direct.mit.edu/rest/article/86/3/735/57586/The-Effects-of-401-K-Participation-on-the-Wealth). Their paper investigates the effect of participation in the employer-sponsored 401(k) retirement savings plan (*p401*) on net assets (*net_tfa*). Since then, the data was used to showcase many new methods. It is not the most comprehensive dataset with basically ten covariates/regressors/predictors:
 
@@ -80,6 +69,11 @@ We again use the data of the `hdm` package. The data was used in [Chernozhukov a
 
 ```{r, warning=F,message=F}
 library(hdm)
+library(DoubleML)
+library(mlr3)
+library(mlr3learners)
+library(mlr3tuning)
+library(ggplot2)
 
 # Get data
 data(pension)
@@ -105,23 +99,18 @@ cols <- cols[!cols %in% c("Y", "W", "Z")]
 
 ## Partially linear regression model (PLR)
 
-Explanation of Estimator ML Methods
+We have a regression problem because our outcome variable, net tfa, which represents net assets, is continuous in nature. Regression learners will be used to model the relationship between our predictor coefficients $X$ and the outcome variable $Y$.
+The outcome variable $Y$ is modeled as a linear function of the policy variable $D$ and additional confounding factors $X$ in a partly linear regression model (PLR). The model's objective is to determine the causal relationship between $D$ and $Y$ while accounting for the impact of $X$. Since our outcome variable is continous a regression learner will always be utuilized for $Y$.
+For $D$ it is appropiate to use a classification learner, since $D$ (`e401`) is a binary value.
 
-### Version 1 (Regression Random Forrest)
+
+
+### Version I (Regression Random Forrest) & II ()
 
 ```{r}
 
-library(DoubleML)
-library(mlr3)
-library(mlr3learners)
-
 set.seed(123)
-
 lgr::get_logger("mlr3")$set_threshold("warn")
-learner <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-# learner <- lrn("regr.ranger")
-ml_l = learner$clone()
-ml_m = learner$clone()
 
 obj_dml_data <- double_ml_data_from_data_frame(data_pension,
                                         y_col = "Y",
@@ -129,89 +118,85 @@ obj_dml_data <- double_ml_data_from_data_frame(data_pension,
                                         x_cols = cols)
 
 
-dml_plr_obj <- DoubleMLPLR$new(obj_dml_data, ml_l, ml_m)
-dml_plr_obj$fit()
-print(dml_plr_obj)
+# Version 1
+learner <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+# learner <- lrn("regr.ranger")
+ml_l_plr_1 <-  learner$clone()
+ml_m_plr_1 <-  learner$clone()
 
 
-```
-### Version 2 (Regression and Classification Random Forest)
+#Version 2
+ml_l_plr_2 <- lrn("regr.ranger")
+ml_m_plr_2 <- lrn("classif.ranger")
 
 
-```{r}
 
-library(DoubleML)
-library(mlr3)
-library(mlr3learners)
 
-# Set up the data as a DoubleMLData object
-dml_data <- double_ml_data_from_data_frame(pension,
-                                        y_col = "net_tfa",
-                                        d_cols = "p401",
-                                        x_cols = cols)
+dml_plr_obj_1 <- DoubleMLPLR$new(obj_dml_data,
+                               ml_l_plr_1,
+                               ml_m_plr_1)
+dml_plr_obj_1$fit()
+print(dml_plr_obj_1)
 
-# Set up the machine learning methods for m & g
-learner_l <- lrn("regr.ranger")
-learner_m <- lrn("classif.ranger")
+
+
 
 # Initialize an object of class DoubleMLPLR
-dml_plr_obj_classif <- DoubleMLPLR$new(dml_data,
-                               ml_l = learner_l,
-                               ml_m = learner_m)
+dml_plr_obj_2 <- DoubleMLPLR$new(obj_dml_data,
+                                       ml_l_plr_2,
+                                       ml_m_plr_2)
 
 # Estimate the treatment effect
-dml_plr_obj_classif$fit()
-dml_plr_obj_classif$summary()
-print(dml_plr_obj_classif)
+dml_plr_obj_2$fit()
+print(dml_plr_obj_2)
+
 
 ```
+
 
 ## Partially linear IV regression model (PLIV)
 
 
-### Version 1 
+### Version I () & II ()
 
 ```{r}
 
 set.seed(123)
 
-learner = lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_l_pliv = learner$clone()
-ml_m_pliv = learner$clone()
-ml_r_pliv = learner$clone()
-
-obj_dml_data_pliv = DoubleMLData$new(data_pension,
+obj_dml_data_z <- DoubleMLData$new(data_pension,
                                      y_col="Y",
                                      d_col = "W",
                                      z_cols= "Z",
                                      x_cols = cols)
-dml_pliv_obj = DoubleMLPLIV$new(obj_dml_data_pliv, ml_l_pliv, ml_m_pliv, ml_r_pliv)
-dml_pliv_obj$fit()
-print(dml_pliv_obj)
+#version 1
+learner <- lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_l_pliv_1 <- learner$clone()
+ml_m_pliv_1 <- learner$clone()
+ml_r_pliv_1 <- learner$clone()
 
 
-```
-### Version 2 
+#Version 2
+learner <- lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_l_pliv_2 <- learner$clone()
+ml_m_pliv_2 <- learner$clone()
+ml_r_pliv_2 <- learner$clone()
 
-```{r}
+#Version 1
+dml_pliv_obj_1 <- DoubleMLPLIV$new(obj_dml_data_z,
+                                ml_l_pliv_1,
+                                ml_m_pliv_1,
+                                ml_r_pliv_1)
+dml_pliv_obj_1$fit()
+print(dml_pliv_obj_1)
 
-set.seed(123)
 
-#use different classifier
-learner = lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_l_pliv = learner$clone()
-ml_m_pliv = learner$clone()
-ml_r_pliv = learner$clone()
-
-obj_dml_data_pliv <- DoubleMLData$new(data_pension,
-                                     y_col="Y",
-                                     d_col = "W",
-                                     z_cols= "Z",
-                                     x_cols = cols)
-dml_pliv_obj <- DoubleMLPLIV$new(obj_dml_data_pliv, ml_l_pliv, ml_m_pliv, ml_r_pliv)
-dml_pliv_obj$fit()
-print(dml_pliv_obj)
-
+#Version 2
+dml_pliv_obj_2 <- DoubleMLPLIV$new(obj_dml_data_z,
+                                 ml_l_pliv_2,
+                                 ml_m_pliv_2,
+                                 ml_r_pliv_2)
+dml_pliv_obj_2$fit()
+print(dml_pliv_obj_2)
 
 
 
@@ -220,46 +205,38 @@ print(dml_pliv_obj)
 
 ## Interactive regression model for ATE (IRM)
 
-### Version 1 
+### Version I () & II ()
 
 ```{r}
 
 set.seed(123)
 
-ml_g_irm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_m_irm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-
 obj_dml_data <-  DoubleMLData$new(data_pension,
                                 y_col="Y",
                                 d_cols="W",
                                 x_cols = cols)
-dml_irm_obj_1 <- DoubleMLIRM$new(obj_dml_data, ml_g_irm_1, ml_m_irm_1)
+#Version 1
+ml_g_irm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_m_irm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+
+#Version 2
+ml_g_irm_2 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_m_irm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+
+#Version 1
+dml_irm_obj_1 <- DoubleMLIRM$new(obj_dml_data,
+                                 ml_g_irm_1,
+                                 ml_m_irm_1)
 dml_irm_obj_1$fit()
 print(dml_irm_obj_1)
 
 
-```
-
-
-
-### Version 2 
-
-
-```{r}
-
-
-set.seed(123)
-
-ml_g_irm <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_m_irm <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-
-obj_dml_data <-  DoubleMLData$new(data_pension,
-                                y_col="Y",
-                                d_cols="W",
-                                x_cols = cols)
-dml_irm_obj_2 <- DoubleMLIRM$new(obj_dml_data, ml_g_irm, ml_m_irm)
+#Version 2
+dml_irm_obj_2 <- DoubleMLIRM$new(obj_dml_data,
+                                 ml_g_irm_2,
+                                 ml_m_irm_2)
 dml_irm_obj_2$fit()
-print(dml_irm_obj_1)
+print(dml_irm_obj_2)
 
 
 
@@ -282,51 +259,58 @@ ml_r_iivm_1 is a clone of ml_m_iivm_1 and is also a classification learner (clas
 All three learners are random forests with 100 trees (num.trees = 100) and use all but one of the available predictor variables at each split (mtry = ncol(X)-1). The minimum size of terminal nodes is set to 2 (min.node.size = 2) and trees can grow up to a maximum depth of 5 (max.depth = 5).
 
 
-### Version 1 
-
-### Version 2
+### Version I () & II ()
 
 ```{r}
 
 set.seed(123)
 
-ml_g_iivm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_m_iivm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
-ml_r_iivm_1 <-  ml_m$clone()
-
-obj_dml_data <- DoubleMLData$new(data_pension,
+obj_dml_data_z <- DoubleMLData$new(data_pension,
                                 y_col="Y",
                                 d_cols="W",
                                 z_cols="Z",
                                 x_cols = cols)
-dml_iivm_obj_1 <-  DoubleMLIIVM$new(obj_dml_data,
-                                ml_g_iivm_1, ml_m_iivm_1, ml_r_iivm_1)
+
+#Version 1
+ml_g_iivm_1 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_m_iivm_1 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_r_iivm_1 <-  ml_m_iivm_1$clone()
+
+#Version 2
+ml_g_iivm_2 <-  lrn("regr.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_m_iivm_2 <-  lrn("classif.ranger", num.trees = 100, mtry = ncol(X)-1, min.node.size = 2, max.depth = 5)
+ml_r_iivm_2 <-  ml_m_iivm_2$clone()
+
+#Version 1
+dml_iivm_obj_1 <-  DoubleMLIIVM$new(obj_dml_data_z, 
+                                    ml_g_iivm_1,
+                                    ml_m_iivm_1,
+                                    ml_r_iivm_1)
 dml_iivm_obj_1$fit()
 print(dml_iivm_obj_1)
 
 
+#Version 2
+dml_iivm_obj_2 <-  DoubleMLIIVM$new(obj_dml_data_z, 
+                                    ml_g_iivm_2,
+                                    ml_m_iivm_2,
+                                    ml_r_iivm_2)
+dml_iivm_obj_2$fit()
+print(dml_iivm_obj_2)
+
+
 ```
 
 
-## Final Model (Hyperparameter Tunining)
 
-
-```{r}
-
-
-
-```
-
-
-
-## Plot Model Evaluations
+## Model Evaluations
 
 ```{r}
 
-dml_objs <- list(dml_plr_obj_classif,dml_plr_obj,
-                 dml_pliv_obj,
-                 dml_irm_obj_1,
-                 dml_iivm_obj_1)
+dml_objs <- list(dml_plr_obj_1,dml_plr_obj_2,
+                 dml_pliv_obj_1,dml_pliv_obj_2,
+                 dml_irm_obj_1,dml_irm_obj_2,
+                 dml_iivm_obj_1,dml_iivm_obj_2)
 names <-c("PLR", "PLIV", "IRM", "IIVM")
 model_names <- c(rep(names, each = 2),"IIVM_HPT")
 
@@ -346,16 +330,25 @@ lower_bounds <- point_estimates - 1.96 * std_errors
 upper_bounds <- point_estimates + 1.96 * std_errors
 
 
-
-
 # create a data frame for plotting and model description
 df <- data.frame(
-    model = paste0("Model ", seq_along(dml_objs)," ", model_names[1:length(dml_objs)]),
+    model = paste0("Model ", seq_along(dml_objs)," ",
+                   model_names[1:length(dml_objs)]),
     estimate = point_estimates,
     lower = lower_bounds,
     upper = upper_bounds,
     p_value = p_values
 )
+
+
+# Determine the narrowest confidence Interval
+# calculate the width of each confidence interval
+ci_widths <- upper_bounds - lower_bounds
+# find the index of the model with the slimest confidence interval width
+best_model_idx <- which.min(ci_widths)
+# get the name of the most secure model
+best_model_name <- df$model[best_model_idx]
+best_model_text <- paste0("The model with the narrowest confidence interval is: ", best_model_name)
 
 # plot point estimates with error bars representing the confidence intervals
 ggplot(df, aes(x=model, y=estimate)) +
@@ -363,8 +356,10 @@ ggplot(df, aes(x=model, y=estimate)) +
     geom_errorbar(aes(ymin=lower, ymax=upper), width=0.2, color="grey80") +
     scale_color_brewer(palette="Set1") +
     theme_light() +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          axis.text.x = element_text(angle = 90)) + # rotate x-axis labels
     ggtitle("Model Evaluation") +
+    labs(subtitle = best_model_text)+
     xlab("Model") +
     ylab("Point Estimate")
 
@@ -372,19 +367,95 @@ ggplot(df, aes(x=model, y=estimate)) +
 ```
 ```{r}
 
+# find the index of the model with the smallest p-value
+best_model_idx <- which.min(df$p_value)
+
+# get the name of the best model
+best_model_name <- df$model[best_model_idx]
+
+# create text for subtitle
+best_model_text <- paste0("The model with highest statistical significance is: ", best_model_name)
+
 # plot p-values for each model
 ggplot(df, aes(x=model, y=p_value)) +
     geom_point(aes(color=model), size=3) +
     scale_color_brewer(palette="Set1") +
     theme_light() +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          axis.text.x = element_text(angle = 90)) +
     ggtitle("Model Evaluation (p-values)") +
+    labs(subtitle = best_model_text) + # add subtitle
     xlab("Model") +
     ylab("P-value")
-
 ```
 
+A model may provide the best accurate estimate of the treatment impact if it has the narrowest confidence interval among the other models being compared. As a result, employing this model as opposed to other models, there is less doubt over the actual value of the treatment impact.
+Based on this, we will now perform Hyperparameter tuning to determine if we can improve the model.
 
+
+## Final Model (Hyperparameter Tunining)
+
+
+```{r}
+
+library(DoubleML)
+library(mlr3)
+library(mlr3tuning)
+
+# Set up the data
+obj_dml_data_pliv <- DoubleMLData$new(data_pension,
+                                      y_col = "Y",
+                                      d_col = "W",
+                                      z_cols = "Z",
+                                      x_cols = cols)
+
+# Set up the learner
+learner <- lrn("regr.ranger")
+
+# Define the search space for hyperparameters
+param_set <- ParamSet$new(list(
+  ParamInt$new("num.trees", lower = 10, upper = 500),
+  ParamInt$new("mtry", lower = 1, upper = ncol(obj_dml_data_pliv$data)-1),
+  ParamInt$new("min.node.size", lower = 1, upper = 10),
+  ParamInt$new("max.depth", lower = 1, upper = 10)
+))
+
+# Set up the tuning instance
+instance <- TuningInstanceSingleCrit$new(
+  task = TaskRegr$new(id = "pliv_task", backend=obj_dml_data_pliv$data,
+                      target="Y"),
+  learner = learner,
+  resampling = rsmp("cv", folds=5),
+  measure=msr("regr.mse"),
+  search_space=param_set,
+  terminator=trm("evals", n_evals=25)
+)
+
+# Run the tuning
+tuner <- tnr("grid_search")
+tuner$optimize(instance)
+
+# Extract the best hyperparameters
+best_params <- instance$result_learner_param_vals
+
+# Update the learners with the best hyperparameters
+ml_l_pliv <- learner$clone()
+ml_l_pliv$param_set$values <-  best_params
+ml_m_pliv <- learner$clone()
+ml_m_pliv$param_set$values <- best_params
+ml_r_pliv <- learner$clone()
+ml_r_pliv$param_set$values <- best_params
+
+dml_pliv_obj <- DoubleMLPLIV$new(obj_dml_data_pliv,
+                                 ml_l_pliv,
+                                 ml_m_pliv,
+                                 ml_r_pliv)
+
+dml_pliv_obj$fit()
+print(dml_pliv_obj)
+
+
+```
 
 
 
